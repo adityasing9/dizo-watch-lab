@@ -251,8 +251,8 @@ export interface SuperSyncStep {
 }
 
 /**
- * Builds the comprehensive multi-step Super-Sync sequence
- * Combining initialization handshake, top time setting candidate frames, and LCD redraw triggers
+ * Builds the safe, non-crashing time sync sequence for Linwear / Realtek smartwatches.
+ * STRICT: Avoids sending 0x10 or raw epoch buffers that trigger watchdog resets or reboots on RTL8762!
  */
 export function buildSuperSyncSequence(date: Date): SuperSyncStep[] {
   const year = date.getFullYear();
@@ -262,7 +262,6 @@ export function buildSuperSyncSequence(date: Date): SuperSyncStep[] {
   const hour = date.getHours();
   const min = date.getMinutes();
   const sec = date.getSeconds();
-  const epochSec = Math.floor(date.getTime() / 1000);
 
   return [
     // 1. Session Authorization Handshake
@@ -271,15 +270,9 @@ export function buildSuperSyncSequence(date: Date): SuperSyncStep[] {
       bytes: new Uint8Array([0x01, 0x01, 0x00]),
       role: 'init',
     },
+    // 2. Realtek / DaFit Calendar 8-byte (dominant standard on FF02)
     {
-      name: 'Linwear Ping Frame [0xAB, 0x00, 0x01, 0x01]',
-      bytes: new Uint8Array([0xab, 0x00, 0x01, 0x01]),
-      role: 'init',
-    },
-
-    // 2. Realtek / DaFit Calendar 8-byte (dominant on FF02)
-    {
-      name: 'Realtek / DaFit Calendar 8-byte [0x04, YearHi, YearLo, ...]',
+      name: 'Realtek Calendar 8-byte [0x04, YearHi, YearLo, ...]',
       bytes: new Uint8Array([
         0x04,
         (year >> 8) & 0xff,
@@ -292,10 +285,9 @@ export function buildSuperSyncSequence(date: Date): SuperSyncStep[] {
       ]),
       role: 'time',
     },
-
-    // 3. Linwear 2-Digit Year Calendar
+    // 3. Linwear 2-Digit Year Calendar (Standard Linwear format)
     {
-      name: 'Linwear 2-Digit Calendar [0x04, Year-2000, M, D, H, M, S, 24h]',
+      name: 'Linwear 2-Digit Calendar [0x04, Year-2000, ...]',
       bytes: new Uint8Array([
         0x04,
         yearOffset & 0xff,
@@ -308,90 +300,10 @@ export function buildSuperSyncSequence(date: Date): SuperSyncStep[] {
       ]),
       role: 'time',
     },
-
-    // 4. Linwear Magic Framed 0xAB Calendar
-    {
-      name: 'Linwear Magic Framed 0xAB Calendar',
-      bytes: new Uint8Array([
-        0xab,
-        0x00,
-        0x08,
-        0x01,
-        (year >> 8) & 0xff,
-        year & 0xff,
-        month & 0xff,
-        day & 0xff,
-        hour & 0xff,
-        min & 0xff,
-        sec & 0xff,
-      ]),
-      role: 'time',
-    },
-
-    // 5. Linwear Realtek 6-byte Epoch
-    {
-      name: 'Realtek 6-byte Epoch [0x01, 0x04, EpochLE]',
-      bytes: new Uint8Array([
-        0x01,
-        0x04,
-        epochSec & 0xff,
-        (epochSec >> 8) & 0xff,
-        (epochSec >> 16) & 0xff,
-        (epochSec >> 24) & 0xff,
-      ]),
-      role: 'time',
-    },
-
-    // 6. Linwear Direct 5-byte Epoch
-    {
-      name: 'Linwear Direct 5-byte Epoch [0x01, EpochLE]',
-      bytes: new Uint8Array([
-        0x01,
-        epochSec & 0xff,
-        (epochSec >> 8) & 0xff,
-        (epochSec >> 16) & 0xff,
-        (epochSec >> 24) & 0xff,
-      ]),
-      role: 'time',
-    },
-
-    // 7. Realtek Opcode 0x10 System Time
-    {
-      name: 'Realtek System Opcode 0x10 [0x10, YearHi, YearLo, ...]',
-      bytes: new Uint8Array([
-        0x10,
-        (year >> 8) & 0xff,
-        year & 0xff,
-        month & 0xff,
-        day & 0xff,
-        hour & 0xff,
-        min & 0xff,
-        sec & 0xff,
-      ]),
-      role: 'time',
-    },
-
-    // 8. Raw Unix Epoch (LE)
-    {
-      name: 'Raw 4-byte Unix Epoch (LE)',
-      bytes: new Uint8Array([
-        epochSec & 0xff,
-        (epochSec >> 8) & 0xff,
-        (epochSec >> 16) & 0xff,
-        (epochSec >> 24) & 0xff,
-      ]),
-      role: 'time',
-    },
-
-    // 9. Force LCD Screen Redraw (Time format 24h & 12h)
+    // 4. Force LCD Screen Redraw (Time format 24h)
     {
       name: 'LCD Redraw Trigger (Set 24h) [0x05, 0x00]',
       bytes: new Uint8Array([0x05, 0x00]),
-      role: 'refresh',
-    },
-    {
-      name: 'LCD Redraw Trigger (Set 12h) [0x05, 0x01]',
-      bytes: new Uint8Array([0x05, 0x01]),
       role: 'refresh',
     },
   ];

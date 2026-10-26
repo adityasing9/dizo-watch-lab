@@ -11,7 +11,9 @@ import {
   Sparkles,
   RefreshCw,
   Power,
+  Download,
 } from 'lucide-react';
+import { InAppUpdateModal } from '../common/InAppUpdateModal';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -22,6 +24,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onSwitchToSimple }) => {
   const { status, device, isMockMode, setMockMode, disconnect } = useBluetooth();
   const [localTime, setLocalTime] = useState(new Date());
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setLocalTime(new Date()), 1000);
@@ -131,6 +134,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onS
           </button>
         </div>
 
+        {/* In-App Direct Updater Button */}
+        <button
+          onClick={() => setShowUpdateModal(true)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-yellow-950/80 hover:bg-yellow-900 border border-yellow-700/80 text-yellow-300 text-xs font-mono font-bold transition-colors shadow-sm"
+          title="Direct In-App App Updater"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Update</span>
+        </button>
+
         {/* Switch to Simple Mode */}
         {onSwitchToSimple && (
           <button
@@ -163,6 +176,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onS
           </button>
         )}
       </div>
+
+      <InAppUpdateModal isOpen={showUpdateModal} onClose={() => setShowUpdateModal(false)} />
     </header>
   );
 };

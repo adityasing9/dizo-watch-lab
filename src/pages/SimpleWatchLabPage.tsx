@@ -23,7 +23,11 @@ import {
   Check,
   Smartphone,
   ExternalLink,
+  Download,
+  Sparkles,
 } from 'lucide-react';
+import { InAppUpdateModal } from '../components/common/InAppUpdateModal';
+import { CURRENT_APP_VERSION } from '../services/updater/appUpdaterService';
 
 interface SimpleWatchLabPageProps {
   onSwitchToAdvanced: () => void;
@@ -69,6 +73,9 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
   // Manual MAC Input state
   const [showManualMac, setShowManualMac] = useState(false);
   const [manualMacInput, setManualMacInput] = useState('');
+
+  // In-app updater modal state
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   // Writable pipes detected
   const writablePipes = useMemo(() => detectWritablePipes(services), [services]);
@@ -171,7 +178,7 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
     await handleConnectDevice(trimmed, 'DIZO Watch D');
   };
 
-  // ONE-BUTTON TIME SET: Broadcasts all protocols to all writable characteristics
+  // SAFE ONE-BUTTON TIME SET: Targets FF02/FFD2 only, STRICTLY avoids OTA DFU (6387)
   const handleSetTime = async () => {
     if (status !== 'connected') {
       setErrorMessage('Please connect to watch first.');
@@ -185,9 +192,21 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
 
     const now = new Date();
     const steps = buildSuperSyncSequence(now);
-    const targets = writablePipes;
 
-    addLog(`Setting time across ${targets.length} pipes...`, 'info');
+    // CRITICAL: Exclude all OTA/DFU pipes (0x6387 / 0x6287) so the watch does not reboot!
+    const targets = writablePipes.filter((p) => {
+      const u = p.characteristicUuid.toLowerCase();
+      const s = p.serviceUuid.toLowerCase();
+      return !u.includes('6387') && !s.includes('6287') && !u.includes('6487');
+    });
+
+    if (targets.length === 0) {
+      setErrorMessage('No compatible time command pipe found on watch.');
+      setIsSyncing(false);
+      return;
+    }
+
+    addLog(`Setting time across ${targets.length} safe pipes (OTA excluded to prevent reboot)...`, 'info');
 
     let completed = 0;
     try {
@@ -205,14 +224,15 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
 
         completed++;
         setSyncProgress(Math.min(95, Math.round((completed / steps.length) * 100)));
-        await new Promise((r) => setTimeout(r, 180));
+        // 250ms spacing prevents BLE buffer overflow on RTL8762
+        await new Promise((r) => setTimeout(r, 250));
       }
 
       setSyncProgress(100);
       setSyncDone(true);
       setStatusMessage(null);
       setTimeSyncStatus('TIME_SYNC_VERIFIED');
-      addLog('Time sync commands complete! Press watch crown button to wake LCD.', 'success');
+      addLog('Time sync complete! Press watch crown button once to wake screen.', 'success');
     } catch (err: any) {
       setErrorMessage(err.message || 'Sync encountered an error.');
     } finally {
@@ -234,13 +254,24 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
           </div>
         </div>
 
-        <button
-          onClick={onSwitchToAdvanced}
-          className="text-[11px] font-mono text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
-        >
-          <span>Advanced Lab</span>
-          <ArrowRight className="w-3 h-3" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowUpdateModal(true)}
+            className="text-[11px] font-mono text-yellow-400 hover:text-yellow-300 bg-yellow-950/80 border border-yellow-800/80 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors font-bold shadow-sm"
+            title="Update app directly from inside the app"
+          >
+            <Download className="w-3 h-3" />
+            <span>Update App</span>
+          </button>
+
+          <button
+            onClick={onSwitchToAdvanced}
+            className="text-[11px] font-mono text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+          >
+            <span>Advanced Lab</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* Big Digital Clock (Current Phone Time to Push) */}
@@ -511,6 +542,8 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
           <p className="leading-relaxed">{errorMessage}</p>
         </div>
       )}
+      {/* In-App Direct Updater Modal */}
+      <InAppUpdateModal isOpen={showUpdateModal} onClose={() => setShowUpdateModal(false)} />
     </div>
   );
 };

@@ -41,6 +41,13 @@ export function detectWritablePipes(services: GattServiceInfo[]): SmartwatchPipe
         continue;
       }
 
+      // STRICT SAFETY FILTER: NEVER route time packets to Realtek OTA DFU firmware channels!
+      // Characteristic 0x6387 under Service 0x6287 is the Pairlink / Realtek Bootloader flashing pipe.
+      // Writing time opcodes (0x01, 0x04, 0x05) to 0x6387 triggers an MCU reset / reboot!
+      if (cNorm.includes('6387') || sNorm.includes('6287') || cNorm.includes('6487')) {
+        continue;
+      }
+
       let score = 10;
       let name = char.name || 'Writable Characteristic';
       let isObservedTarget = false;
@@ -136,18 +143,6 @@ export function detectWritablePipes(services: GattServiceInfo[]): SmartwatchPipe
       score: 95,
       isObservedTarget: true,
       notes: 'Auxiliary candidate pipe based on DIZO Watch D hardware',
-    });
-    pipes.push({
-      id: 'fallback-6387',
-      name: 'Linwear Realtek Pipe (6387 Reference)',
-      serviceUuid: '00006287-3c17-d293-8e48-14fe2e4da212',
-      characteristicUuid: '00006387-3c17-d293-8e48-14fe2e4da212',
-      serviceName: 'Linwear Primary Service (0x6287)',
-      properties: { read: false, write: true, writeWithoutResponse: true, notify: false, indicate: false },
-      preferredWriteType: 'writeWithoutResponse',
-      score: 40,
-      isObservedTarget: true,
-      notes: 'OTA channel entry based on DIZO Watch D hardware',
     });
   }
 

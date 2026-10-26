@@ -15,13 +15,18 @@ import {
   CheckCircle2,
   AlertTriangle,
   Code2,
+  Download,
+  Sparkles,
 } from 'lucide-react';
+import { InAppUpdateModal } from '../components/common/InAppUpdateModal';
+import { CURRENT_APP_VERSION } from '../services/updater/appUpdaterService';
 import { clearAllLogsFromDb, clearAllNotificationsFromDb } from '../services/storage/indexedDb';
 
 export const SettingsHelpPage: React.FC = () => {
   const { capability, isMockMode, setMockMode, refreshCapability } = useBluetooth();
   const [activeSection, setActiveSection] = useState<'network' | 'android' | 'protocol' | 'storage'>('network');
   const [wipeNotice, setWipeNotice] = useState<string | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const handleWipeAll = async () => {
     await clearAllLogsFromDb();
@@ -41,6 +46,30 @@ export const SettingsHelpPage: React.FC = () => {
         <p className="text-xs font-mono text-slate-400 mt-1">
           Platform compatibility diagnostics, secure context configuration for Android phones, and native BLE transition guide.
         </p>
+      </div>
+
+      {/* In-App Direct Updater Card */}
+      <div className="bg-gradient-to-r from-yellow-950/40 via-lab-card to-lab-card border border-yellow-700/60 rounded-2xl p-5 shadow-sm font-mono text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-yellow-400" />
+              <span className="font-bold text-white text-sm">Direct In-App App Updates</span>
+              <Badge variant="yellow">{CURRENT_APP_VERSION}</Badge>
+            </div>
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Update DIZO Watch Lab directly from within the app itself without manually downloading APK files or visiting browser download pages.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowUpdateModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs transition-all shadow-md shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>Check & Update In-App</span>
+          </button>
+        </div>
       </div>
 
       {/* Browser Capability Diagnostic Report */}
@@ -344,6 +373,8 @@ export const SettingsHelpPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <InAppUpdateModal isOpen={showUpdateModal} onClose={() => setShowUpdateModal(false)} />
     </div>
   );
 };
