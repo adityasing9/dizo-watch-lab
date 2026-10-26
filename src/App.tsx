@@ -51,6 +51,7 @@ export const AppContent: React.FC = () => {
       case 'gatt':
         return <GattExplorerPage onNavigate={handleNavigate} />;
       case 'pairing':
+      case 'binding-recovery':
         return <PairingAssistantPage onNavigate={handleNavigate} />;
       case 'notifications':
       case 'inspector':

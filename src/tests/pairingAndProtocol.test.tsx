@@ -6,7 +6,10 @@ import { PairingAssistantPage } from '../pages/PairingAssistantPage';
 import { ProtocolResearchPage } from '../pages/ProtocolResearchPage';
 import {
   CANDIDATE_PAIRING_COMMANDS,
+  CANDIDATE_ROTATION_COMMANDS,
+  DIZO_TOUCH_GEOMETRY,
   findMatchingPairingPipe,
+  findMatchingRotationPipe,
 } from '../utils/pairingProtocol';
 import { GattServiceInfo } from '../types/bluetooth';
 
@@ -102,5 +105,57 @@ describe('Pairing Assistant & Protocol Research (Core Features C & E)', () => {
     expect(screen.getByText('Step 2: Single Known Action')).toBeInTheDocument();
     expect(screen.getByText('Step 3: Resulting State')).toBeInTheDocument();
     expect(screen.getByText(/Export Evidence JSON/i)).toBeInTheDocument();
+  });
+
+  it('evaluates candidate 180-degree rotation commands and geometry constraints', () => {
+    expect(CANDIDATE_ROTATION_COMMANDS.length).toBeGreaterThanOrEqual(3);
+    for (const cmd of CANDIDATE_ROTATION_COMMANDS) {
+      expect(cmd.isVerified).toBe(false);
+      expect(cmd.payload.length).toBeGreaterThan(0);
+      expect(cmd.technicalAssessment).toBeTruthy();
+    }
+
+    // Mathematical verification of 180° rotation mapping
+    const { lcdResolution, normalOrientation, rotated180Orientation } = DIZO_TOUCH_GEOMETRY;
+    expect(lcdResolution.width).toBe(240);
+    expect(lcdResolution.height).toBe(280);
+
+    // Normal accept button position
+    expect(normalOrientation.acceptButton.quadrant).toBe('Bottom-Right');
+
+    // 180° rotation shifts Bottom-Right to Top-Left
+    expect(rotated180Orientation.acceptButton.quadrant).toBe('Top-Left');
+    expect(rotated180Orientation.reachesWorkingZone).toBe(false);
+  });
+
+  it('renders Rotate Watch 180 button and recovery tabs in Binding Recovery page', async () => {
+    const mockNavigate = () => {};
+
+    await act(async () => {
+      render(
+        <BluetoothProvider>
+          <PairingAssistantPage onNavigate={mockNavigate} />
+        </BluetoothProvider>
+      );
+    });
+
+    // Check Rotate Watch 180° button
+    expect(screen.getByText('Rotate Watch 180°')).toBeInTheDocument();
+
+    // Check rotation status indicator
+    expect(screen.getByText(/180° Rotation: Unsupported in Firmware/i)).toBeInTheDocument();
+
+    // Check strict 4-state acceptance badge
+    expect(screen.getAllByText(/Command Not Sent \(Unverified\)/i).length).toBeGreaterThanOrEqual(1);
+
+    // Switch to rotation investigation tab
+    const rotationTabBtn = screen.getByText('180° Rotation Investigation');
+    fireEvent.click(rotationTabBtn);
+    expect(screen.getByText(/Sitronix ST7789 LCD Controller/i)).toBeInTheDocument();
+
+    // Switch to geometry map tab
+    const geometryTabBtn = screen.getByText('Touch & Screen Geometry Map');
+    fireEvent.click(geometryTabBtn);
+    expect(screen.getByText(/The 180° Point Reflection Problem/i)).toBeInTheDocument();
   });
 });

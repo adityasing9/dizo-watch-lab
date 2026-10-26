@@ -9,6 +9,7 @@ export type LogCategory =
   | 'NOTIFY' 
   | 'TIME_SYNC' 
   | 'PAIRING'
+  | 'ROTATION'
   | 'RESEARCH'
   | 'SECURITY';
 

@@ -31,7 +31,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onN
     },
     {
       id: 'pairing',
-      label: 'Pairing',
+      label: 'Recovery',
       icon: KeyRound,
       highlight: true,
       dot: status === 'connected',
