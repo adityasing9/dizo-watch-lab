@@ -76,18 +76,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onS
         </button>
 
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-cyan-950/80 border border-cyan-800/80 flex items-center justify-center text-cyan-400 shadow-sm shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-yellow-950/80 border border-yellow-700/80 flex items-center justify-center text-yellow-400 shadow-sm shrink-0">
             <Watch className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold tracking-tight text-slate-100 text-sm sm:text-base">DIZO Watch Lab</span>
-              <span className="text-[9px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800/60 px-1 py-0.2 rounded hidden xs:inline">
-                v1.0
+              <span className="text-[9px] font-mono bg-yellow-950 text-yellow-300 border border-yellow-800/80 px-1 py-0.2 rounded hidden xs:inline">
+                PRO
               </span>
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono hidden md:block">
-              DIZO Watch D • Protocol Diagnostic & Time Sync
+              DIZO Watch D • Diagnostic & Recovery Assistant
             </div>
           </div>
         </div>
@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onS
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Real-time Clock display */}
         <div className="hidden xl:flex items-center gap-2 text-xs font-mono text-slate-300 bg-lab-card/80 border border-lab-border px-3 py-1.5 rounded-md">
-          <Clock className="w-3.5 h-3.5 text-cyan-400" />
+          <Clock className="w-3.5 h-3.5 text-yellow-400" />
           <span>{localTime.toLocaleTimeString()}</span>
           <span className="text-slate-500">|</span>
           <span className="text-slate-400">{localTime.toLocaleDateString()}</span>

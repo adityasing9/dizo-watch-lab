@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useBluetooth } from '../context/BluetoothContext';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
-import { formatHexDump } from '../utils/byteUtils';
+import { formatHexDump, bytesToUtf8 } from '../utils/byteUtils';
 import { formatUuidDisplay } from '../utils/uuidUtils';
 import {
   Binary,
@@ -373,6 +373,16 @@ export const GattExplorerPage: React.FC<GattExplorerPageProps> = ({ onNavigate }
                   : '(No bytes recorded)'}
               </pre>
             </div>
+
+            {/* Optional UTF-8 Interpretation View */}
+            {inspectModalChar.lastValueBytes && inspectModalChar.lastValueBytes.length > 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded p-3 text-xs space-y-1">
+                <div className="text-slate-400 text-[10px] uppercase font-bold">Optional UTF-8 Text Interpretation:</div>
+                <div className="text-yellow-300 font-mono break-all">
+                  {bytesToUtf8(inspectModalChar.lastValueBytes) || '(No printable UTF-8 characters)'}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button

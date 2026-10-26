@@ -8,6 +8,8 @@ export type LogCategory =
   | 'WRITE' 
   | 'NOTIFY' 
   | 'TIME_SYNC' 
+  | 'PAIRING'
+  | 'RESEARCH'
   | 'SECURITY';
 
 export interface DiagnosticLog {

@@ -9,19 +9,20 @@ export default {
     extend: {
       colors: {
         lab: {
-          bg: '#0b0f17',
-          surface: '#121824',
-          card: '#182030',
-          border: '#243048',
-          text: '#f1f5f9',
+          bg: '#0a0f1d', // Dark navy
+          surface: '#10172a', // Navy surface
+          card: '#162238', // Elevated navy card
+          border: '#223252', // Clean contrasting border
+          text: '#f8fafc', // High-contrast text
           muted: '#94a3b8',
           dim: '#64748b',
-          accent: '#06b6d4', // cyan-500
-          accentHover: '#0891b2',
+          accent: '#facc15', // Bright yellow accent
+          accentHover: '#eab308', // Darker yellow hover
+          accentText: '#0a0f1d', // Contrast dark text on bright yellow
           success: '#10b981', // emerald-500
           warning: '#f59e0b', // amber-500
           danger: '#ef4444', // red-500
-          info: '#3b82f6', // blue-500
+          info: '#38bdf8', // sky-400
         }
       },
       fontFamily: {

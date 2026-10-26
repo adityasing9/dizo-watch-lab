@@ -3,7 +3,7 @@ import { useBluetooth } from '../../context/BluetoothContext';
 import {
   LayoutDashboard,
   Bluetooth,
-  Clock,
+  KeyRound,
   Binary,
   ScrollText,
 } from 'lucide-react';
@@ -14,7 +14,7 @@ interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onNavigate }) => {
-  const { status, timeSyncStatus } = useBluetooth();
+  const { status } = useBluetooth();
 
   const navItems = [
     {
@@ -23,19 +23,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onN
       icon: LayoutDashboard,
     },
     {
-      id: 'connection',
+      id: 'connect',
       label: 'Connect',
       icon: Bluetooth,
       dot: status === 'connected',
       dotColor: 'bg-emerald-400',
     },
     {
-      id: 'time-sync',
-      label: 'Time Sync',
-      icon: Clock,
+      id: 'pairing',
+      label: 'Pairing',
+      icon: KeyRound,
       highlight: true,
-      dot: timeSyncStatus === 'TIME_SYNC_VERIFIED',
-      dotColor: 'bg-emerald-400',
+      dot: status === 'connected',
+      dotColor: 'bg-yellow-400',
     },
     {
       id: 'gatt',
@@ -54,7 +54,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onN
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id || (item.id === 'connect' && activeTab === 'connection');
 
           if (item.highlight) {
             return (
@@ -67,15 +67,15 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onN
                 <div
                   className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 ${
                     isActive
-                      ? 'bg-cyan-500 text-slate-950 shadow-cyan-500/30 ring-2 ring-cyan-400'
-                      : 'bg-gradient-to-tr from-cyan-600 to-cyan-500 text-slate-950 hover:brightness-110 shadow-cyan-900/40'
+                      ? 'bg-yellow-400 text-slate-950 shadow-yellow-400/40 ring-2 ring-yellow-300'
+                      : 'bg-gradient-to-tr from-yellow-500 to-yellow-400 text-slate-950 hover:brightness-110 shadow-yellow-900/40'
                   }`}
                 >
                   <Icon className="w-5 h-5 stroke-[2.5]" />
                 </div>
                 <span
-                  className={`text-[10px] font-mono mt-1 font-semibold ${
-                    isActive ? 'text-cyan-300' : 'text-slate-400'
+                  className={`text-[10px] font-mono mt-1 font-bold ${
+                    isActive ? 'text-yellow-400' : 'text-slate-400'
                   }`}
                 >
                   {item.label}
@@ -94,18 +94,18 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ activeTab, onN
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-lg transition-colors relative min-w-[56px] active:bg-slate-800/40 ${
-                isActive ? 'text-cyan-400' : 'text-slate-400 hover:text-slate-200'
+                isActive ? 'text-yellow-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                <Icon className={`w-5 h-5 ${isActive ? 'text-yellow-400' : 'text-slate-400'}`} />
                 {item.dot && (
                   <span
                     className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-lab-surface ${item.dotColor}`}
                   />
                 )}
               </div>
-              <span className={`text-[10px] font-mono mt-1 ${isActive ? 'font-semibold text-cyan-300' : ''}`}>
+              <span className={`text-[10px] font-mono mt-1 ${isActive ? 'font-bold text-yellow-300' : ''}`}>
                 {item.label}
               </span>
             </button>

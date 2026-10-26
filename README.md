@@ -13,50 +13,82 @@
 
 ## 🎯 Primary Engineering Objective
 
-The immediate objective is to **determine whether the watch supports date and time synchronization through Bluetooth Low Energy** because its physical touchscreen is broken and the manufacturer's official companion application has been discontinued.
+The primary objective is to **investigate, communicate with, and recover functionality on a DIZO Watch D smartwatch whose physical touchscreen is broken**.
+
+When attempting to pair with a phone, the watch repeatedly displays a confirmation dialog asking the user to accept or reject phone binding. Because the touch digitizer cannot register touch input, **DIZO Watch Lab** provides a dedicated **Pairing Assistant** to investigate whether phone binding can be confirmed over Bluetooth Low Energy, alongside a complete protocol diagnostic workbench and date/time synchronization lab.
 
 > **Scientist Principle:** DIZO Watch Lab strictly follows experimental protocol verification. It **does not claim the watch can be controlled** until candidate commands are verified experimentally against the physical hardware display. No simulated telemetry is ever presented as real device data.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Core Features Matrix
 
-1. **Web Bluetooth Device Manager:**
-   - User-initiated BLE device chooser dialog.
-   - Broad peripheral discovery (`acceptAllDevices: true`) and filtered name prefix discovery (`DIZO`, `Watch`).
-   - Dynamic `optionalServices` registration (mandatory for Web Bluetooth GATT access).
-   - Single-peripheral connection conflict detection and recovery workflow.
+1. **Pairing Assistant (Core Feature C — Top Priority):**
+   - 8 precise hardware state indicators: `Watch disconnected`, `Watch connected`, `Pairing confirmation detected`, `Waiting for confirmation`, `Acceptance command not yet identified`, `Command sent`, `Acceptance verified`, `Operation failed`.
+   - 5 core buttons: `Connect to Watch`, `Check Pairing Status`, `Accept on Watch`, `Cancel Operation`, `View Diagnostic Log`.
+   - Safety gating with mandatory disclaimer: *"The Bluetooth command for accepting this watch's phone-binding confirmation has not yet been verified."*
+   - Investigates Linwear vendor opcode handshake (`0xFF02` / `0xFF03`), WeChat / Tencent Sports AirSync (`0xFEE7` / `0xFEA1`), and standard BLE HID virtual input (`0x1812`).
 
-2. **GATT Service & Characteristic Explorer:**
+2. **GATT Service & Characteristic Explorer (Core Feature B):**
    - Full tree enumeration of primary services and exposed characteristics.
-   - Instant resolution against standard Bluetooth SIG Assigned Numbers (`0x1800`, `0x1801`, `0x1805`, `0x180A`, `0x1812`, `0x2A2B`, `0x2A00`, etc.).
-   - Cross-referencing against previously observed DIZO Watch D reference UUIDs (`000001FF-...`, `00006287-...`, `0000FF02-...`, `00006387-...`).
-   - Live read, subscribe/unsubscribe notifications, and raw byte inspector modal.
+   - Standard Bluetooth SIG Assigned Numbers resolution (`0x1800`, `0x1801`, `0x1805`, `0x180A`, `0x1812`).
+   - Permissions matrix (`Read`, `Write`, `WriteWithoutResponse`, `Notify`, `Indicate`).
+   - Real-time read, notification subscription, hex dump, and optional UTF-8 string interpretation.
 
-3. **Time Synchronization Research Lab (Primary Screen):**
-   - **Section A:** Live reference host clock displaying system date, time, timezone, and UTC offset from the local RTC.
-   - **Section B:** Evaluation of candidate time synchronization protocols (Bluetooth SIG CTS `0x1805`, DaFit/Realtek `0xFF02` Opcode 0x04, and Proprietary `0x6387` Epoch Time).
-   - **Section C:** Formal time synchronization status tracker (`NOT_INVESTIGATED`, `INVESTIGATION_IN_PROGRESS`, `POSSIBLE_CHARACTERISTIC_IDENTIFIED`, `CANDIDATE_COMMAND_IDENTIFIED`, `COMMAND_TESTED`, `TIME_SYNC_VERIFIED`, `UNSUPPORTED_OR_UNRESOLVED`).
-   - **Section D:** 7-step safe execution workflow:
-     1. Review intended operation
-     2. Review destination characteristic
-     3. Review live byte breakdown
-     4. Confirm operation
-     5. Execute command
-     6. Inspect peripheral response
-     7. Manual watch display verification prompt ("Did the screen time change?")
+3. **Protocol Research Workspace (Core Feature E):**
+   - Controlled 6-step experimental workflow:
+     1. Capture initial baseline snapshot (Snapshot A).
+     2. Perform single known action on phone or watch.
+     3. Capture resulting post-action state (Snapshot B).
+     4. Byte-by-byte delta comparator highlighting shifted registers.
+     5. Protocol annotations with strict confidence classification (`UNVERIFIED`, `PROBABLE`, `VERIFIED`).
+     6. Export collected evidence as structured JSON.
 
-4. **Safe Command Laboratory:**
-   - Read-only by default.
-   - Interactive packet builder with checksum engine (Sum modulo 256, XOR checksum, CRC-16 CCITT).
-   - Physical safety interlock requiring manual release before any write operation.
-   - Two-stage confirmation dialog with mandatory purpose documentation.
-   - Strict prohibition against random writes or brute-force guessing.
+4. **Notification Monitor (Core Feature D):**
+   - Live stream of incoming notification and indication packets with timestamps, byte lengths, hex payloads, and ASCII previews.
+   - Dedicated notification channel controller to subscribe/unsubscribe directly.
+   - Stream pause/resume, clear history, and JSON/TXT/CSV local export.
 
-5. **Data Inspector & Notification Monitor:**
-   - Real-time packet capture stream for incoming notifications and indication events.
-   - Multi-format view: Hexadecimal, Decimal array, and safe ASCII/UTF-8 dump.
-   - Stream pause/resume and JSON/CSV export.
+5. **Date & Time Synchronization Research (Core Feature F):**
+   - Reference host clock displaying system date, time, timezone, and UTC offset from the local RTC.
+   - Evaluation of candidate protocols (Bluetooth SIG CTS `0x1805`, DaFit/Realtek `0xFF02` Opcode 0x04, Linwear Epoch `0x6387`).
+   - 7-step safe execution workflow with manual watch display verification prompt.
+
+6. **Device Connection Panel (Core Feature A):**
+   - User-initiated BLE device chooser dialog (`Scan / Connect to Watch`).
+   - Connection status indicators, selected device identifier, and graceful disconnect handler.
+   - Real-device MAC scanner and direct connect for Android environments.
+
+7. **Local Diagnostic Logging (IndexedDB):**
+   - Full audit trail of browser capability checks, connections, disconnections, reads, writes, notifications, and errors.
+   - Zero external cloud transmission or telemetry leakage.
+
+---
+
+## 🔬 Verified Capabilities & Unresolved Protocol Questions
+
+### Verified Capabilities
+- **GATT Connectivity**: DIZO Watch D establishes stable GATT connection in Chrome/Edge on Desktop and Android Chrome.
+- **Service Enumeration**: Primary vendor services `000001FF-...`, `00006287-...`, `0000FEE7-...` and standard services `0x1800`, `0x1801`, `0x180A`, `0x1812` are reliably discovered.
+- **Notification Subscriptions**: Characteristic `0000FF03` and `00006487` accept Client Characteristic Configuration Descriptor (CCCD) writes and stream notification packets.
+- **Read Access**: Characteristics such as WeChat AirSync status (`0xFEA1` -> `07 00 00 ...`), device MAC (`0xFEC9` -> `CC EA FF AD B4 29`), and HID mode (`0x2A4E` -> `00`) can be read cleanly.
+
+### Unresolved Protocol Questions
+1. **Remote Phone-Binding Acceptance**: Does the Realtek RTL8762 Bee2 / Linwear bootloader permit clearing the on-screen confirmation prompt solely via a BLE GATT write, or does the MCU hardware require a capacitive interrupt on the digitizer pins?
+2. **WeChat AirSync Auth Token**: Does writing a positive token to `0xFEA1` bypass the touch prompt when pairing via standard BLE instead of Tencent's WeChat mini-program?
+3. **HID Virtual Input Report**: Does writing an Enter keycode (`0x28`) to HID Report `0x2A4D` under service `0x1812` dispatch a click event to the prompt's focused button?
+
+---
+
+## 📱 Native Android Version & Roadmap
+
+The project includes a ready-to-run Capacitor Android bridge that compiles directly to a native Android APK:
+- Pre-configured Android project under `./android` with `@capacitor-community/bluetooth-le` 8.3.0.
+- Pre-compiled debug APK available at `./dizo-watch-lab.apk`.
+- Roadmap:
+  - **Phase 1 (Complete)**: Hybrid Capacitor implementation bridging Web UI with native Android BLE GATT client.
+  - **Phase 2 (Current)**: Testing candidate pairing acceptance packets and notification streams on physical Android hardware.
+  - **Phase 3 (Next)**: Dedicated Kotlin native background service for continuous telemetry capture and persistent bond management.
 
 6. **Local Diagnostic Logging (IndexedDB):**
    - Full audit trail of browser capability checks, connections, disconnections, reads, writes, notifications, and errors.

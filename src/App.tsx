@@ -5,8 +5,9 @@ import { SimpleWatchLabPage } from './pages/SimpleWatchLabPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DeviceConnectionPage } from './pages/DeviceConnectionPage';
 import { GattExplorerPage } from './pages/GattExplorerPage';
+import { PairingAssistantPage } from './pages/PairingAssistantPage';
 import { DataInspectorPage } from './pages/DataInspectorPage';
-import { CommandLabPage } from './pages/CommandLabPage';
+import { ProtocolResearchPage } from './pages/ProtocolResearchPage';
 import { TimeSyncPage } from './pages/TimeSyncPage';
 import { DiagnosticLogsPage } from './pages/DiagnosticLogsPage';
 import { SettingsHelpPage } from './pages/SettingsHelpPage';
@@ -44,14 +45,19 @@ export const AppContent: React.FC = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardPage onNavigate={handleNavigate} />;
+      case 'connect':
       case 'connection':
         return <DeviceConnectionPage onNavigate={handleNavigate} />;
       case 'gatt':
         return <GattExplorerPage onNavigate={handleNavigate} />;
+      case 'pairing':
+        return <PairingAssistantPage onNavigate={handleNavigate} />;
+      case 'notifications':
       case 'inspector':
         return <DataInspectorPage />;
+      case 'protocol-research':
       case 'command-lab':
-        return <CommandLabPage />;
+        return <ProtocolResearchPage />;
       case 'time-sync':
         return <TimeSyncPage onNavigate={handleNavigate} />;
       case 'logs':

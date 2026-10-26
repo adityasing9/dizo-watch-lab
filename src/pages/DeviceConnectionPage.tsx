@@ -372,10 +372,10 @@ export const DeviceConnectionPage: React.FC<DeviceConnectionPageProps> = ({ onNa
                 <button
                   onClick={handleRequestAndConnect}
                   disabled={isLoading}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] text-slate-950 font-mono font-bold text-sm sm:text-base flex items-center justify-center gap-3 transition-all shadow-lg shadow-cyan-950/60 disabled:opacity-50"
+                  className="w-full py-4 px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 active:scale-[0.98] text-slate-950 font-mono font-bold text-sm sm:text-base flex items-center justify-center gap-3 transition-all shadow-lg shadow-yellow-950/60 disabled:opacity-50"
                 >
                   <Bluetooth className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>{isLoading ? 'Searching Peripherals...' : 'Scan & Connect Watch'}</span>
+                  <span>{isLoading ? 'Searching Peripherals...' : 'Scan / Connect to Watch'}</span>
                 </button>
 
                 {device && (
