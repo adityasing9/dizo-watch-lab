@@ -47,34 +47,34 @@ export function detectWritablePipes(services: GattServiceInfo[]): SmartwatchPipe
       let notes = '';
 
       // Check specific Linwear / Realtek UUID patterns
-      if (cNorm.includes('6387')) {
+      if (cNorm.includes('ff02')) {
         score = 100;
-        name = 'Linwear / Realtek Primary Command (6387)';
+        name = 'Realtek / Moyoung / DaFit Command Tx (FF02)';
         isObservedTarget = true;
-        notes = 'Primary writable endpoint for Linwear / RTL8762 smartwatches';
-      } else if (cNorm.includes('ff02')) {
-        score = 90;
-        name = 'Realtek / Moyoung Command Tx (FF02)';
-        isObservedTarget = true;
-        notes = 'DaFit & Moyoung protocol command pipe';
+        notes = 'Primary command pipe for Linwear & Realtek smartwatches';
       } else if (cNorm.includes('ffd2')) {
-        score = 85;
-        name = 'Realtek D0F Auxiliary Tx (FFD2)';
+        score = 95;
+        name = 'Realtek D0F Auxiliary Command Tx (FFD2)';
         isObservedTarget = true;
-        notes = 'Observed on DIZO Watch D D0F vendor service';
+        notes = 'Auxiliary command pipe for Linwear & Realtek smartwatches';
+      } else if (cNorm.includes('ff04') || cNorm.includes('ffd4')) {
+        score = 85;
+        name = `Vendor Auxiliary Writable (${cNorm.slice(4, 8)})`;
+        isObservedTarget = true;
       } else if (cNorm.includes('2a2b')) {
         score = 80;
         name = 'Bluetooth SIG Current Time (2A2B)';
         isObservedTarget = true;
         notes = 'Standard Bluetooth SIG Current Time Characteristic';
-      } else if (cNorm.includes('ff04') || cNorm.includes('ffd4')) {
-        score = 70;
-        name = `Vendor Auxiliary Writable (${cNorm.slice(4, 8)})`;
+      } else if (cNorm.includes('6387')) {
+        score = 40;
+        name = 'Realtek OTA DFU Channel (6387)';
         isObservedTarget = true;
+        notes = 'Pairlink / Realtek OTA firmware update write channel';
       } else if (
-        sNorm.includes('6287') ||
         sNorm.includes('01ff') ||
         sNorm.includes('0d0f') ||
+        sNorm.includes('6287') ||
         !char.isStandard
       ) {
         score = 50;
@@ -114,6 +114,30 @@ export function detectWritablePipes(services: GattServiceInfo[]): SmartwatchPipe
   // If no pipes discovered yet (e.g. discovery in flight), supply known DIZO fallback candidates
   if (pipes.length === 0) {
     pipes.push({
+      id: 'fallback-ff02',
+      name: 'Realtek / Moyoung Pipe (FF02 Reference)',
+      serviceUuid: '000001ff-3c17-d293-8e48-14fe2e4da212',
+      characteristicUuid: '0000ff02-0000-1000-8000-00805f9b34fb',
+      serviceName: 'Vendor Service (0x01FF)',
+      properties: { read: false, write: true, writeWithoutResponse: true, notify: false, indicate: false },
+      preferredWriteType: 'writeWithoutResponse',
+      score: 100,
+      isObservedTarget: true,
+      notes: 'Primary candidate pipe based on DIZO Watch D hardware',
+    });
+    pipes.push({
+      id: 'fallback-ffd2',
+      name: 'Realtek D0F Auxiliary Pipe (FFD2 Reference)',
+      serviceUuid: '00000d0f-3c17-d293-8e48-14fe2e4da212',
+      characteristicUuid: '0000ffd2-0000-1000-8000-00805f9b34fb',
+      serviceName: 'Vendor Service (0x0D0F)',
+      properties: { read: false, write: true, writeWithoutResponse: true, notify: false, indicate: false },
+      preferredWriteType: 'writeWithoutResponse',
+      score: 95,
+      isObservedTarget: true,
+      notes: 'Auxiliary candidate pipe based on DIZO Watch D hardware',
+    });
+    pipes.push({
       id: 'fallback-6387',
       name: 'Linwear Realtek Pipe (6387 Reference)',
       serviceUuid: '00006287-3c17-d293-8e48-14fe2e4da212',
@@ -121,21 +145,9 @@ export function detectWritablePipes(services: GattServiceInfo[]): SmartwatchPipe
       serviceName: 'Linwear Primary Service (0x6287)',
       properties: { read: false, write: true, writeWithoutResponse: true, notify: false, indicate: false },
       preferredWriteType: 'writeWithoutResponse',
-      score: 100,
+      score: 40,
       isObservedTarget: true,
-      notes: 'Fallback entry based on observed DIZO Watch D hardware',
-    });
-    pipes.push({
-      id: 'fallback-ff02',
-      name: 'Realtek Moyoung Pipe (FF02 Reference)',
-      serviceUuid: '000001ff-3c17-d293-8e48-14fe2e4da212',
-      characteristicUuid: '0000ff02-0000-1000-8000-00805f9b34fb',
-      serviceName: 'Vendor Service (0x01FF)',
-      properties: { read: false, write: true, writeWithoutResponse: true, notify: false, indicate: false },
-      preferredWriteType: 'writeWithoutResponse',
-      score: 90,
-      isObservedTarget: true,
-      notes: 'Fallback entry based on observed DIZO Watch D hardware',
+      notes: 'OTA channel entry based on DIZO Watch D hardware',
     });
   }
 

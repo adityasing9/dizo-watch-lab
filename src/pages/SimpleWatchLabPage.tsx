@@ -3,13 +3,13 @@ import { useBluetooth } from '../context/BluetoothContext';
 import {
   SMARTWATCH_TIME_PACKETS,
   SmartwatchTimePacket,
+  buildSuperSyncSequence,
 } from '../utils/timePacketGenerators';
 import {
   detectWritablePipes,
   detectNotifyPipes,
   writePipeResilient,
   SmartwatchPipe,
-  SmartwatchNotifyPipe,
 } from '../utils/smartwatchPipes';
 import { bytesToHex } from '../utils/byteUtils';
 import {
@@ -30,8 +30,11 @@ import {
   Send,
   Radio,
   Layers,
-  Check,
   RotateCcw,
+  Copy,
+  Check,
+  Smartphone,
+  Info,
 } from 'lucide-react';
 
 interface SimpleWatchLabPageProps {
@@ -83,14 +86,15 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
   const [showManualMac, setShowManualMac] = useState(false);
   const [manualMacInput, setManualMacInput] = useState('');
 
-  // Pipe Detection & Selection
+  // Pipe Detection & Selection (Default to 'all' for maximum coverage)
   const writablePipes = useMemo(() => detectWritablePipes(services), [services]);
   const notifyPipes = useMemo(() => detectNotifyPipes(services), [services]);
-  const [selectedPipeId, setSelectedPipeId] = useState<string>('auto'); // 'auto' | 'all' | pipe.id
+  const [selectedPipeId, setSelectedPipeId] = useState<string>('all');
 
   // Activity Logs Console State
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
   const consoleBottomRef = useRef<HTMLDivElement>(null);
+  const [copiedLog, setCopiedLog] = useState(false);
 
   const addLog = (
     text: string,
@@ -109,6 +113,15 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
       charUuid,
     };
     setActivityLogs((prev) => [...prev.slice(-99), item]);
+  };
+
+  const handleCopyLogs = () => {
+    const text = activityLogs
+      .map((l) => `[${l.time}] ${l.type.toUpperCase()}: ${l.text} ${l.hex ? `[${l.hex}]` : ''}`)
+      .join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedLog(true);
+    setTimeout(() => setCopiedLog(false), 2000);
   };
 
   // Auto-scroll console
@@ -243,7 +256,7 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
       const found = writablePipes.find((p) => p.id === selectedPipeId);
       if (found) return [found];
     }
-    // 'auto' picks top ranked pipe
+    // 'auto' picks top ranked pipe (FF02, then FFD2, etc.)
     return writablePipes.length > 0 ? [writablePipes[0]] : [];
   };
 
@@ -269,7 +282,7 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
         addLog(`TX OK -> ${shortChar} via ${res.usedWriteType}`, 'success', hex, pipe.characteristicUuid);
       } else {
         lastErr = res.error || 'Write rejected';
-        addLog(`TX FAILED -> ${shortChar}: ${lastErr}`, 'error', hex, pipe.characteristicUuid);
+        addLog(`TX SKIP -> ${shortChar}: ${lastErr}`, 'warn', hex, pipe.characteristicUuid);
       }
     }
 
@@ -278,7 +291,7 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
     }
   };
 
-  // Smart 1-Tap Auto Time Sync
+  // Comprehensive Super-Sync (Handshake -> Candidates -> Screen Refresh)
   const handleAutoSync = async () => {
     if (status !== 'connected') {
       setErrorMessage('Please connect your watch first.');
@@ -290,35 +303,39 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
     const now = new Date();
     setLastSyncedTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
-    addLog('Starting Auto-Sync sequence with top candidate protocols...', 'info');
+    const steps = buildSuperSyncSequence(now);
+    const targets = getActivePipesToTarget();
+    addLog(`Initiating Super-Sync (${steps.length} frames across ${targets.length} pipes)...`, 'info');
 
-    // Run the top candidate packets in sequence:
-    // 1. Linwear Realtek 6-byte Epoch (01 04 ...)
-    // 2. Realtek Calendar 8-byte (04 YearHi YearLo ...)
-    // 3. Linwear Framed 0xAB
-    // 4. Linwear 2-Digit Year Calendar
-    const candidateIndices = [0, 1, 2, 3];
-    let sentCount = 0;
-
+    let successCount = 0;
     try {
-      for (const idx of candidateIndices) {
-        const candidate = SMARTWATCH_TIME_PACKETS[idx];
-        if (!candidate) continue;
+      for (const step of steps) {
+        setStatusMessage(`Transmitting: ${step.name}...`);
+        const hex = bytesToHex(step.bytes);
 
-        setStatusMessage(`Transmitting: ${candidate.name}...`);
-        await transmitPacket(candidate, now);
-        sentCount++;
+        for (const pipe of targets) {
+          const shortChar = pipe.characteristicUuid.slice(4, 8) || pipe.characteristicUuid.slice(0, 8);
+          addLog(`TX -> ${shortChar} [${step.name}]`, 'tx', hex, pipe.characteristicUuid);
 
-        // Brief delay between candidate frames so watch MCU processes each cleanly
-        await new Promise((r) => setTimeout(r, 350));
+          const res = await writePipeResilient(writeCharacteristic, pipe, step.bytes);
+          if (res.success) {
+            successCount++;
+            addLog(`TX OK -> ${shortChar} via ${res.usedWriteType}`, 'success', hex, pipe.characteristicUuid);
+          } else {
+            addLog(`TX SKIP -> ${shortChar}: ${res.error}`, 'warn', hex, pipe.characteristicUuid);
+          }
+        }
+
+        // Brief delay between frames so MCU processes each cleanly
+        await new Promise((r) => setTimeout(r, 220));
       }
 
       setStatusMessage(null);
       setSyncFeedbackStage('prompt');
-      addLog(`Auto-Sync finished: Transmitted ${sentCount} candidate frames. Check watch display!`, 'success');
+      addLog(`Super-Sync finished (${successCount} frames sent). Press side crown button to wake watch!`, 'success');
     } catch (err: any) {
       setErrorMessage(err.message || 'Auto-Sync failed to write to watch GATT.');
-      addLog(`Auto-Sync encountered error: ${err.message}`, 'error');
+      addLog(`Auto-Sync error: ${err.message}`, 'error');
       setSyncFeedbackStage('failed');
     } finally {
       setIsSyncing(false);
@@ -580,7 +597,7 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
             <div className="flex items-center justify-between text-slate-300">
               <span className="font-semibold flex items-center gap-1.5 text-cyan-300">
                 <Radio className="w-3.5 h-3.5 text-cyan-400" />
-                Active GATT Command Pipe:
+                Target Command Pipe:
               </span>
               <button
                 onClick={() => discoverServices()}
@@ -599,10 +616,10 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
                 onChange={(e) => setSelectedPipeId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono outline-none focus:border-cyan-500"
               >
+                <option value="all">⚡ Broadcast to ALL Discovered Writable Pipes (Recommended)</option>
                 <option value="auto">
                   🎯 Auto (Best Match: {writablePipes[0]?.name || 'Auto-detect'})
                 </option>
-                <option value="all">⚡ Broadcast to ALL Discovered Writable Pipes</option>
                 {writablePipes.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.characteristicUuid.slice(4, 8) || p.characteristicUuid.slice(0, 8)}) - {p.preferredWriteType}
@@ -653,27 +670,35 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
                 className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-cyan-400 to-teal-400 hover:brightness-110 active:scale-[0.98] text-slate-950 font-mono font-black text-base flex items-center justify-center gap-3 transition-all shadow-xl shadow-cyan-950/60 disabled:opacity-50"
               >
                 <Clock className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Transmitting Time...' : 'Auto-Sync Time to Watch'}</span>
+                <span>{isSyncing ? 'Running Super-Sync...' : 'Auto-Sync Time to Watch'}</span>
               </button>
 
               <p className="text-[11px] font-mono text-slate-400 leading-tight">
-                Pushes Linwear & Realtek RTC candidate frames directly to the active GATT pipe.
+                Pushes Handshake, Realtek/Linwear Calendar frames & LCD Redraw command.
               </p>
             </div>
           </div>
 
           {/* Verification Feedback Banner */}
           {syncFeedbackStage === 'prompt' && (
-            <div className="bg-cyan-950/70 border border-cyan-600/80 rounded-3xl p-5 sm:p-6 text-center space-y-4 shadow-xl animate-fade-in">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-900/80 border border-cyan-500 flex items-center justify-center mx-auto text-cyan-300">
+            <div className="bg-cyan-950/80 border border-cyan-500 rounded-3xl p-5 sm:p-6 text-center space-y-4 shadow-xl animate-fade-in">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-900/80 border border-cyan-400 flex items-center justify-center mx-auto text-cyan-200">
                 <Sparkles className="w-6 h-6" />
               </div>
 
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-white">Time Packet Sent!</h3>
-                <p className="text-xs font-mono text-slate-300">
-                  Look at your watch screen right now. Did the clock update to{' '}
-                  <strong className="text-cyan-300 font-bold">{lastSyncedTimeStr}</strong>?
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-white">Time Packets Dispatched!</h3>
+                <div className="p-3 bg-slate-950/70 border border-cyan-700/60 rounded-2xl text-xs font-mono text-amber-300 text-left space-y-1">
+                  <span className="font-bold flex items-center gap-1.5 text-white">
+                    <Info className="w-4 h-4 text-cyan-400" />
+                    Crucial Step: Force Watch LCD Redraw
+                  </span>
+                  <p className="text-slate-300 leading-relaxed">
+                    Smartwatch screens cache the clock image while on. Click the <strong>physical side crown button</strong> on your watch once to turn the screen off, then once more to wake it up!
+                  </p>
+                </div>
+                <p className="text-xs font-mono text-slate-300 pt-1">
+                  Did the clock update to <strong className="text-cyan-300 font-bold">{lastSyncedTimeStr}</strong>?
                 </p>
               </div>
 
@@ -777,16 +802,26 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
                 <Terminal className="w-3.5 h-3.5 text-cyan-400" />
                 Live Bluetooth Activity Console
               </span>
-              <button
-                onClick={() => setActivityLogs([])}
-                className="text-[10px] hover:text-slate-200 text-slate-500 flex items-center gap-1"
-              >
-                <RotateCcw className="w-2.5 h-2.5" />
-                <span>Clear</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyLogs}
+                  className="text-[10px] hover:text-cyan-300 text-slate-400 flex items-center gap-1 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800"
+                  title="Copy log to clipboard"
+                >
+                  {copiedLog ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                  <span>{copiedLog ? 'Copied!' : 'Copy Log'}</span>
+                </button>
+                <button
+                  onClick={() => setActivityLogs([])}
+                  className="text-[10px] hover:text-slate-200 text-slate-500 flex items-center gap-1"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  <span>Clear</span>
+                </button>
+              </div>
             </div>
 
-            <div className="h-40 overflow-y-auto font-mono text-[11px] p-2 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-1">
+            <div className="h-44 overflow-y-auto font-mono text-[11px] p-2 rounded-xl bg-slate-900/60 border border-slate-800/60 space-y-1">
               {activityLogs.length === 0 ? (
                 <div className="text-slate-600 text-center py-6">
                   Ready. Tap &quot;Auto-Sync Time&quot; or select a candidate format to begin transmission.
@@ -813,6 +848,17 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
               )}
               <div ref={consoleBottomRef} />
             </div>
+          </div>
+
+          {/* Alternative Companion App Notice */}
+          <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-4 text-xs font-mono text-slate-400 space-y-2">
+            <div className="text-slate-300 font-bold flex items-center gap-1.5">
+              <Smartphone className="w-4 h-4 text-cyan-400" />
+              <span>Alternative Manufacturer Companion App</span>
+            </div>
+            <p className="leading-relaxed">
+              DIZO smartwatches are manufactured by <strong>Linwear</strong>. If the DIZO app is unavailable or your watch requires an initial Bluetooth bond, you can also install <strong>OnWear</strong> or <strong>OnWear Pro</strong> (the official Linwear companion app) directly from the Google Play Store or APKPure.
+            </p>
           </div>
         </div>
       )}
