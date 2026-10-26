@@ -85,20 +85,35 @@ export const TimeSyncPage: React.FC<TimeSyncPageProps> = ({ onNavigate }) => {
     .toString()
     .padStart(2, '0')}:${offsetMinsRemainder.toString().padStart(2, '0')}`;
 
-  // Evaluate candidate matching against discovered services
+  // Evaluate candidate matching against discovered services with flexible lookup
   const evaluatedCandidates = CANDIDATE_TIME_PROTOCOLS.map((protocol) => {
-    const matchingService = services.find(
+    let matchingService = services.find(
       (s) => s.normalizedUuid === protocol.serviceUuid.toLowerCase()
     );
-    const matchingChar = matchingService?.characteristics.find(
+    let matchingChar = matchingService?.characteristics.find(
       (c) => c.normalizedUuid === protocol.characteristicUuid.toLowerCase()
     );
 
+    // Cross-service fallback matching if characteristic exists under custom vendor tree
+    if (!matchingChar) {
+      const targetShort = protocol.characteristicUuid.slice(4, 8).toLowerCase();
+      for (const s of services) {
+        const found = s.characteristics.find(
+          (c) =>
+            c.normalizedUuid === protocol.characteristicUuid.toLowerCase() ||
+            c.normalizedUuid.includes(targetShort)
+        );
+        if (found) {
+          matchingChar = found;
+          matchingService = s;
+          break;
+        }
+      }
+    }
+
     const isAvailable = Boolean(matchingChar);
     const hasWritePermission = matchingChar
-      ? protocol.writeType === 'writeWithoutResponse'
-        ? matchingChar.properties.writeWithoutResponse || matchingChar.properties.write
-        : matchingChar.properties.write
+      ? Boolean(matchingChar.properties.write || matchingChar.properties.writeWithoutResponse)
       : false;
 
     return {
@@ -127,22 +142,46 @@ export const TimeSyncPage: React.FC<TimeSyncPageProps> = ({ onNavigate }) => {
     const payload = selectedProtocol.buildPayload(clockDate);
 
     try {
-      // Step 5: Execute
+      // Step 5: Execute with dynamic pipe & writeType resolution
       setActiveStep(5);
 
-      await writeCharacteristic(
-        selectedProtocol.serviceUuid,
-        selectedProtocol.characteristicUuid,
-        new Uint8Array(payload.bytes),
-        selectedProtocol.writeType
-      );
+      let targetServiceUuid = selectedProtocol.serviceUuid;
+      let targetCharUuid = selectedProtocol.characteristicUuid;
+      let writeType = selectedProtocol.writeType;
+
+      const evalMatch = evaluatedCandidates.find((e) => e.protocol.id === selectedProtocol.id);
+      if (evalMatch?.matchingService && evalMatch?.matchingChar) {
+        targetServiceUuid = evalMatch.matchingService.uuid;
+        targetCharUuid = evalMatch.matchingChar.uuid;
+        if (evalMatch.matchingChar.properties.writeWithoutResponse && !evalMatch.matchingChar.properties.write) {
+          writeType = 'writeWithoutResponse';
+        } else if (evalMatch.matchingChar.properties.write && !evalMatch.matchingChar.properties.writeWithoutResponse) {
+          writeType = 'write';
+        }
+      }
+
+      try {
+        await writeCharacteristic(
+          targetServiceUuid,
+          targetCharUuid,
+          new Uint8Array(payload.bytes),
+          writeType
+        );
+      } catch (err: any) {
+        const altWriteType = writeType === 'writeWithoutResponse' ? 'write' : 'writeWithoutResponse';
+        await writeCharacteristic(
+          targetServiceUuid,
+          targetCharUuid,
+          new Uint8Array(payload.bytes),
+          altWriteType
+        );
+      }
 
       // Step 6: Inspect any response / read back if readable
       setActiveStep(6);
       let responseHex: string | undefined = undefined;
 
-      const matchingService = services.find((s) => s.normalizedUuid === selectedProtocol.serviceUuid.toLowerCase());
-      const matchingChar = matchingService?.characteristics.find((c) => c.normalizedUuid === selectedProtocol.characteristicUuid.toLowerCase());
+      const matchingChar = evalMatch?.matchingChar;
 
       if (matchingChar?.properties.read) {
         try {
