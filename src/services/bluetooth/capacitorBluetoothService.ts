@@ -1,4 +1,4 @@
-import { BleClient, BleService } from '@capacitor-community/bluetooth-le';
+import { BleClient, BleService, ConnectionPriority } from '@capacitor-community/bluetooth-le';
 import {
   BluetoothCapability,
   ConnectionStatus,
@@ -168,6 +168,12 @@ export class CapacitorBluetoothService implements IBluetoothService {
       this.device.connectedAt = Date.now();
       this.notifyDevice({ ...this.device });
       logger.success('BLUETOOTH', `GATT connection established with ${this.device.name}!`);
+
+      try {
+        await BleClient.requestConnectionPriority(this.device.id, ConnectionPriority.CONNECTION_PRIORITY_HIGH);
+      } catch (pErr: any) {
+        logger.warn('BLUETOOTH', `Connection priority note: ${pErr.message}`);
+      }
 
       await this.discoverServices();
     } catch (err: any) {
