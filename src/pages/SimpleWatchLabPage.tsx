@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Power,
+  RotateCw,
   ChevronDown,
   ChevronUp,
   Signal,
@@ -291,6 +292,32 @@ export const SimpleWatchLabPage: React.FC<SimpleWatchLabPageProps> = ({ onSwitch
             year: 'numeric',
           })}
         </div>
+      </div>
+
+      {/* 180° Screen Rotation & Binding Recovery Shortcut */}
+      <div className="bg-slate-900/90 border border-cyan-800/60 rounded-3xl p-4 flex items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-2xl bg-cyan-950 border border-cyan-500/60 flex items-center justify-center text-cyan-400 shrink-0">
+            <RotateCw className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>Rotate Watch 180° & Recovery</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-950 text-cyan-300 rounded border border-cyan-800">New</span>
+            </div>
+            <div className="text-[11px] font-mono text-slate-400 truncate">For broken touchscreens (bottom-left responsive)</div>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            localStorage.setItem('dizo_active_tab', 'pairing');
+            onSwitchToAdvanced();
+          }}
+          className="px-3.5 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 active:scale-95 text-slate-950 font-mono font-bold text-xs shrink-0 flex items-center gap-1.5 transition-all shadow"
+        >
+          <span>Open Rotate</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* DISCONNECTED STATE: Just 1 Button to Connect */}

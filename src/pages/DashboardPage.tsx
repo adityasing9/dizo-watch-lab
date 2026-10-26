@@ -231,7 +231,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             onClick={() => onNavigate('pairing')}
             className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-mono text-xs font-bold transition-all shadow-md shrink-0"
           >
-            <span>Launch Pairing Assistant</span>
+            <span>Launch Binding Recovery & Rotate 180°</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

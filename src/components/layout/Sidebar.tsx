@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onNavigate, isOpen,
     },
     {
       id: 'pairing',
-      label: 'Binding Recovery',
+      label: 'Binding & Rotate 180°',
       icon: KeyRound,
       highlight: true,
       badge: 'PRIORITY',
