@@ -51,6 +51,10 @@ interface BluetoothContextType {
   subscribeCharacteristic: (serviceUuid: string, charUuid: string) => Promise<void>;
   unsubscribeCharacteristic: (serviceUuid: string, charUuid: string) => Promise<void>;
   clearNotifications: () => Promise<void>;
+  connectDirect: (deviceId: string, name?: string) => Promise<DiscoveredDevice>;
+  startLiveScan: (onDiscovered: (device: { id: string; name?: string; rssi?: number }) => void) => Promise<void>;
+  stopLiveScan: () => Promise<void>;
+  isNative: boolean;
 }
 
 const BluetoothContext = createContext<BluetoothContextType | null>(null);
@@ -225,6 +229,32 @@ export const BluetoothProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     []
   );
 
+  const connectDirect = useCallback(
+    async (deviceId: string, name?: string) => {
+      if (activeService.connectDirect) {
+        return activeService.connectDirect(deviceId, name);
+      }
+      throw new Error('Direct MAC connection is only supported in the native Android app.');
+    },
+    [activeService]
+  );
+
+  const startLiveScan = useCallback(
+    async (onDiscovered: (device: { id: string; name?: string; rssi?: number }) => void) => {
+      if (activeService.startLiveScan) {
+        return activeService.startLiveScan(onDiscovered);
+      }
+      throw new Error('Live scan is only supported in the native Android app.');
+    },
+    [activeService]
+  );
+
+  const stopLiveScan = useCallback(async () => {
+    if (activeService.stopLiveScan) {
+      return activeService.stopLiveScan();
+    }
+  }, [activeService]);
+
   const value = {
     service: activeService,
     status,
@@ -250,6 +280,10 @@ export const BluetoothProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     subscribeCharacteristic,
     unsubscribeCharacteristic,
     clearNotifications,
+    connectDirect,
+    startLiveScan,
+    stopLiveScan,
+    isNative: Capacitor.isNativePlatform(),
   };
 
   return <BluetoothContext.Provider value={value}>{children}</BluetoothContext.Provider>;

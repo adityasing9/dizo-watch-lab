@@ -32,9 +32,60 @@ export class CapacitorBluetoothService implements IBluetoothService {
 
   private async ensureInitialized(): Promise<void> {
     if (!this.isInitialized) {
-      await BleClient.initialize({ androidNeverForLocation: true });
-      this.isInitialized = true;
-      logger.info('BLUETOOTH', 'Native Android BleClient initialized with androidNeverForLocation=true.');
+      try {
+        await BleClient.initialize();
+        this.isInitialized = true;
+        logger.info('BLUETOOTH', 'Native Android BleClient initialized.');
+      } catch (e: any) {
+        logger.error('BLUETOOTH', `BleClient.initialize failed: ${e.message}`);
+        throw e;
+      }
+    }
+
+    try {
+      const enabled = await BleClient.isEnabled();
+      if (!enabled) {
+        logger.warn('BLUETOOTH', 'Bluetooth radio is OFF. Requesting Android to enable Bluetooth...');
+        await BleClient.requestEnable();
+      }
+    } catch (err: any) {
+      logger.warn('BLUETOOTH', `Bluetooth enable check note: ${err.message}`);
+    }
+  }
+
+  async connectDirect(deviceId: string, name?: string): Promise<DiscoveredDevice> {
+    await this.ensureInitialized();
+    logger.info('BLUETOOTH', `Initiating direct connection to MAC address: ${deviceId}`);
+
+    this.device = {
+      id: deviceId.trim(),
+      name: name || 'DIZO Watch D',
+      connected: false,
+    };
+    this.notifyDevice(this.device);
+
+    await this.connect();
+    return this.device;
+  }
+
+  async startLiveScan(onDiscovered: (device: { id: string; name?: string; rssi?: number }) => void): Promise<void> {
+    await this.ensureInitialized();
+    logger.info('BLUETOOTH', 'Starting live background BLE scan...');
+    await BleClient.requestLEScan({}, (result) => {
+      onDiscovered({
+        id: result.device.deviceId,
+        name: result.localName || result.device.name || undefined,
+        rssi: result.rssi,
+      });
+    });
+  }
+
+  async stopLiveScan(): Promise<void> {
+    try {
+      await BleClient.stopLEScan();
+      logger.info('BLUETOOTH', 'Live BLE scan stopped.');
+    } catch (e: any) {
+      logger.warn('BLUETOOTH', `Error stopping LE scan: ${e.message}`);
     }
   }
 

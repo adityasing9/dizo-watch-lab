@@ -38,7 +38,16 @@ export const DeviceConnectionPage: React.FC<DeviceConnectionPageProps> = ({ onNa
     requestDevice,
     connect,
     disconnect,
+    connectDirect,
+    startLiveScan,
+    stopLiveScan,
+    isNative,
   } = useBluetooth();
+
+  const [connectionMethod, setConnectionMethod] = useState<'chooser' | 'liveScan' | 'manualMac'>('chooser');
+  const [directMacInput, setDirectMacInput] = useState('');
+  const [liveDevices, setLiveDevices] = useState<Array<{ id: string; name?: string; rssi?: number }>>([]);
+  const [isLiveScanning, setIsLiveScanning] = useState(false);
 
   const [copiedId, setCopiedId] = useState(false);
   const [copiedSetting, setCopiedSetting] = useState<string | null>(null);
@@ -111,6 +120,55 @@ export const DeviceConnectionPage: React.FC<DeviceConnectionPageProps> = ({ onNa
       await connect();
     } catch (err: any) {
       setErrorMessage(err.message || 'An error occurred during device selection or connection.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartLiveScan = async () => {
+    setIsLiveScanning(true);
+    setErrorMessage(null);
+    setLiveDevices([]);
+    try {
+      await startLiveScan((discovered) => {
+        setLiveDevices((prev) => {
+          const exists = prev.some((d) => d.id === discovered.id);
+          if (exists) {
+            return prev.map((d) => (d.id === discovered.id ? { ...d, ...discovered } : d));
+          }
+          return [...prev, discovered];
+        });
+      });
+    } catch (err: any) {
+      setIsLiveScanning(false);
+      setErrorMessage(err.message || 'Live scan failed to start.');
+    }
+  };
+
+  const handleStopLiveScan = async () => {
+    setIsLiveScanning(false);
+    try {
+      await stopLiveScan();
+    } catch (err: any) {
+      console.warn(err);
+    }
+  };
+
+  const handleConnectDirectMac = async (macToConnect?: string, name?: string) => {
+    const targetMac = (macToConnect || directMacInput).trim();
+    if (!targetMac) {
+      setErrorMessage('Please enter a valid Bluetooth MAC address (e.g. C4:64:E3:4A:21:9B).');
+      return;
+    }
+    setIsLoading(true);
+    setErrorMessage(null);
+    if (isLiveScanning) {
+      await handleStopLiveScan();
+    }
+    try {
+      await connectDirect(targetMac, name);
+    } catch (err: any) {
+      setErrorMessage(err.message || `Failed to connect to ${targetMac}`);
     } finally {
       setIsLoading(false);
     }
@@ -274,53 +332,175 @@ export const DeviceConnectionPage: React.FC<DeviceConnectionPageProps> = ({ onNa
               </p>
             </div>
 
-            {/* Huge Primary Connect Button */}
-            <div className="w-full max-w-sm space-y-3">
+            {/* Connection Method Tabs */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 p-1 bg-lab-card/80 border border-lab-border rounded-xl text-xs font-mono">
               <button
-                onClick={handleRequestAndConnect}
-                disabled={isLoading}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] text-slate-950 font-mono font-bold text-sm sm:text-base flex items-center justify-center gap-3 transition-all shadow-lg shadow-cyan-950/60 disabled:opacity-50"
+                onClick={() => setConnectionMethod('chooser')}
+                className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
+                  connectionMethod === 'chooser'
+                    ? 'bg-cyan-600 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                <Bluetooth className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>{isLoading ? 'Searching Peripherals...' : 'Scan & Connect Watch'}</span>
+                1. System Chooser
               </button>
+              <button
+                onClick={() => setConnectionMethod('liveScan')}
+                className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
+                  connectionMethod === 'liveScan'
+                    ? 'bg-cyan-600 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                2. Live Radar Scan
+              </button>
+              <button
+                onClick={() => setConnectionMethod('manualMac')}
+                className={`px-3 py-1.5 rounded-lg transition-colors font-semibold ${
+                  connectionMethod === 'manualMac'
+                    ? 'bg-cyan-600 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                3. Direct MAC Connect
+              </button>
+            </div>
 
-              {device && (
+            {/* METHOD 1: SYSTEM CHOOSER */}
+            {connectionMethod === 'chooser' && (
+              <div className="w-full max-w-sm space-y-3">
                 <button
-                  onClick={handleReconnect}
+                  onClick={handleRequestAndConnect}
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] text-slate-950 font-mono font-bold text-sm sm:text-base flex items-center justify-center gap-3 transition-all shadow-lg shadow-cyan-950/60 disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>Reconnect Last Device ({device.name})</span>
+                  <Bluetooth className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>{isLoading ? 'Searching Peripherals...' : 'Scan & Connect Watch'}</span>
                 </button>
-              )}
-            </div>
 
-            {/* Quick Discovery Filter Mode Pills */}
-            <div className="flex items-center gap-2 text-xs font-mono pt-2">
-              <span className="text-slate-400">Scan Filter:</span>
-              <button
-                onClick={() => setDiscoveryMode('all')}
-                className={`px-3 py-1 rounded-full border transition-colors ${
-                  discoveryMode === 'all'
-                    ? 'bg-cyan-950 border-cyan-600 text-cyan-300 font-semibold'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                All Nearby Devices (Recommended)
-              </button>
-              <button
-                onClick={() => setDiscoveryMode('prefix')}
-                className={`px-3 py-1 rounded-full border transition-colors ${
-                  discoveryMode === 'prefix'
-                    ? 'bg-cyan-950 border-cyan-600 text-cyan-300 font-semibold'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                DIZO Only
-              </button>
-            </div>
+                {device && (
+                  <button
+                    onClick={handleReconnect}
+                    disabled={isLoading}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    <span>Reconnect Last Device ({device.name})</span>
+                  </button>
+                )}
+
+                <div className="flex items-center justify-center gap-2 text-xs font-mono pt-1">
+                  <span className="text-slate-400">Filter:</span>
+                  <button
+                    onClick={() => setDiscoveryMode('all')}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] ${
+                      discoveryMode === 'all'
+                        ? 'bg-cyan-950 border-cyan-600 text-cyan-300'
+                        : 'border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    All Devices
+                  </button>
+                  <button
+                    onClick={() => setDiscoveryMode('prefix')}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] ${
+                      discoveryMode === 'prefix'
+                        ? 'bg-cyan-950 border-cyan-600 text-cyan-300'
+                        : 'border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    DIZO Only
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* METHOD 2: LIVE RADAR SCANNER */}
+            {connectionMethod === 'liveScan' && (
+              <div className="w-full max-w-md space-y-4 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-slate-300 font-semibold">
+                    {isLiveScanning ? 'Listening for Bluetooth signals...' : 'Ready to start live scan'}
+                  </span>
+                  <button
+                    onClick={isLiveScanning ? handleStopLiveScan : handleStartLiveScan}
+                    className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all shadow ${
+                      isLiveScanning
+                        ? 'bg-rose-900/80 hover:bg-rose-800 text-rose-100 border border-rose-700'
+                        : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'
+                    }`}
+                  >
+                    {isLiveScanning ? 'Stop Live Scan' : 'Start Live Scan'}
+                  </button>
+                </div>
+
+                {liveDevices.length === 0 ? (
+                  <div className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-xs font-mono text-slate-400">
+                    {isLiveScanning
+                      ? 'Scanning airwaves... Peripherals will appear here automatically.'
+                      : 'Tap "Start Live Scan" to discover nearby devices in real time.'}
+                  </div>
+                ) : (
+                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                    {liveDevices.map((d) => (
+                      <div
+                        key={d.id}
+                        className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3 text-xs font-mono hover:border-cyan-700/60 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-bold text-white truncate">
+                            {d.name || 'Unnamed BLE Device'}
+                          </div>
+                          <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                            <span>{d.id}</span>
+                            {d.rssi !== undefined && (
+                              <span className="text-cyan-400 font-semibold">{d.rssi} dBm</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleConnectDirectMac(d.id, d.name)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs shrink-0 transition-transform active:scale-95 disabled:opacity-50"
+                        >
+                          Connect ➔
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* METHOD 3: DIRECT MAC CONNECT */}
+            {connectionMethod === 'manualMac' && (
+              <div className="w-full max-w-sm space-y-3 text-left">
+                <div className="space-y-1">
+                  <label className="text-xs font-mono text-slate-300 font-semibold block">
+                    Watch MAC Address:
+                  </label>
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    Found in your phone's Bluetooth paired list, user manual, or box.
+                  </p>
+                  <input
+                    type="text"
+                    value={directMacInput}
+                    onChange={(e) => setDirectMacInput(e.target.value)}
+                    placeholder="e.g. C4:64:E3:4A:21:9B"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono uppercase tracking-wider focus:border-cyan-500 outline-none"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleConnectDirectMac()}
+                  disabled={isLoading}
+                  className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-[0.98] text-slate-950 font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all shadow disabled:opacity-50"
+                >
+                  <Bluetooth className="w-4 h-4" />
+                  <span>{isLoading ? 'Connecting...' : 'Connect to MAC Directly'}</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

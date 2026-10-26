@@ -16,6 +16,9 @@ export interface IBluetoothService {
   checkCapability(): Promise<BluetoothCapability>;
   requestDevice(options?: DeviceRequestOptions): Promise<DiscoveredDevice>;
   connect(): Promise<void>;
+  connectDirect?(deviceId: string, name?: string): Promise<DiscoveredDevice>;
+  startLiveScan?(onDiscovered: (device: { id: string; name?: string; rssi?: number }) => void): Promise<void>;
+  stopLiveScan?(): Promise<void>;
   disconnect(): Promise<void>;
   discoverServices(): Promise<GattServiceInfo[]>;
   readCharacteristic(serviceUuid: string, characteristicUuid: string): Promise<Uint8Array>;
