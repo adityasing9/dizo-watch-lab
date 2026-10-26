@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
+import { MobileBottomNav } from './MobileBottomNav';
 import { CapabilityBanner } from '../common/CapabilityBanner';
 
 interface AppLayoutProps {
@@ -25,10 +26,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onNavigate, chi
           onClose={() => setSidebarOpen(false)}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-7xl mx-auto w-full">
           {children}
         </main>
       </div>
+
+      <MobileBottomNav activeTab={activeTab} onNavigate={onNavigate} />
     </div>
   );
 };

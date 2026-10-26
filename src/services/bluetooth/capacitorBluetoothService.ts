@@ -53,13 +53,29 @@ export class CapacitorBluetoothService implements IBluetoothService {
     logger.info('BLUETOOTH', 'Opening Native Android BLE device chooser...');
 
     const defaultOptional = getStandardAndObservedServiceUuids();
-    const customOptional = options?.optionalServices || [];
-    const combinedOptional = Array.from(new Set([...defaultOptional, ...customOptional]));
+    const customOptional = (options?.optionalServices || []).filter((u): u is string => typeof u === 'string');
+    // Ensure all UUIDs passed to native BleClient strictly match 128-bit canonical format
+    const uuid128Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const combinedOptional = Array.from(new Set([...defaultOptional, ...customOptional]))
+      .map((u) => normalizeUuid(u.trim()))
+      .filter((u): u is string => typeof u === 'string' && uuid128Regex.test(u));
 
     try {
-      const selected = await BleClient.requestDevice({
-        optionalServices: combinedOptional,
-      });
+      // In native Android, requestDevice displays a native system dialog showing advertising BLE devices
+      let selected;
+      try {
+        selected = await BleClient.requestDevice(
+          combinedOptional.length > 0 ? { optionalServices: combinedOptional } : {}
+        );
+      } catch (scanErr: any) {
+        // Fallback to open scan if native parser rejects any filter
+        if (scanErr.message?.includes('UUID') || scanErr.message?.includes('Expected string')) {
+          logger.warn('BLUETOOTH', `UUID filter rejected by native engine (${scanErr.message}). Retrying open scan without filters...`);
+          selected = await BleClient.requestDevice({});
+        } else {
+          throw scanErr;
+        }
+      }
 
       this.device = {
         id: selected.deviceId,
@@ -192,8 +208,11 @@ export class CapacitorBluetoothService implements IBluetoothService {
       throw new Error('Device is not connected.');
     }
 
+    const sNorm = normalizeUuid(serviceUuid);
+    const cNorm = normalizeUuid(characteristicUuid);
+
     try {
-      const dataView = await BleClient.read(this.device.id, serviceUuid, characteristicUuid);
+      const dataView = await BleClient.read(this.device.id, sNorm, cNorm);
       const bytes = uint8ArrayFromSource(dataView);
       const hex = bytesToHex(bytes);
       const ascii = bytesToAscii(bytes);
@@ -206,8 +225,8 @@ export class CapacitorBluetoothService implements IBluetoothService {
       });
 
       this.updateCharacteristicValue(
-        normalizeUuid(serviceUuid),
-        normalizeUuid(characteristicUuid),
+        sNorm,
+        cNorm,
         hex,
         Array.from(bytes),
         ascii
@@ -232,12 +251,14 @@ export class CapacitorBluetoothService implements IBluetoothService {
 
     const hex = bytesToHex(payload);
     const dataView = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+    const sNorm = normalizeUuid(serviceUuid);
+    const cNorm = normalizeUuid(characteristicUuid);
 
     try {
       if (writeType === 'writeWithoutResponse') {
-        await BleClient.writeWithoutResponse(this.device.id, serviceUuid, characteristicUuid, dataView);
+        await BleClient.writeWithoutResponse(this.device.id, sNorm, cNorm, dataView);
       } else {
-        await BleClient.write(this.device.id, serviceUuid, characteristicUuid, dataView);
+        await BleClient.write(this.device.id, sNorm, cNorm, dataView);
       }
 
       logger.success('WRITE', `Native write [${hex}] sent to ${characteristicUuid}`);
@@ -256,11 +277,14 @@ export class CapacitorBluetoothService implements IBluetoothService {
       throw new Error('Device is not connected.');
     }
 
+    const sNorm = normalizeUuid(serviceUuid);
+    const cNorm = normalizeUuid(characteristicUuid);
+
     try {
       await BleClient.startNotifications(
         this.device.id,
-        serviceUuid,
-        characteristicUuid,
+        sNorm,
+        cNorm,
         (dataView: DataView) => {
           const bytes = uint8ArrayFromSource(dataView);
           const hex = bytesToHex(bytes);
@@ -284,11 +308,7 @@ export class CapacitorBluetoothService implements IBluetoothService {
         }
       );
 
-      this.setCharacteristicNotifying(
-        normalizeUuid(serviceUuid),
-        normalizeUuid(characteristicUuid),
-        true
-      );
+      this.setCharacteristicNotifying(sNorm, cNorm, true);
       logger.success('NOTIFY', `Subscribed to native notifications on ${characteristicUuid}`);
     } catch (err: any) {
       logger.error('NOTIFY', `Native notification subscription failed on ${characteristicUuid}: ${err.message}`);
@@ -298,13 +318,11 @@ export class CapacitorBluetoothService implements IBluetoothService {
 
   async stopNotifications(serviceUuid: string, characteristicUuid: string): Promise<void> {
     if (!this.device) return;
+    const sNorm = normalizeUuid(serviceUuid);
+    const cNorm = normalizeUuid(characteristicUuid);
     try {
-      await BleClient.stopNotifications(this.device.id, serviceUuid, characteristicUuid);
-      this.setCharacteristicNotifying(
-        normalizeUuid(serviceUuid),
-        normalizeUuid(characteristicUuid),
-        false
-      );
+      await BleClient.stopNotifications(this.device.id, sNorm, cNorm);
+      this.setCharacteristicNotifying(sNorm, cNorm, false);
       logger.info('NOTIFY', `Stopped native notifications on ${characteristicUuid}`);
     } catch (err: any) {
       logger.warn('NOTIFY', `Error stopping native notifications: ${err.message}`);

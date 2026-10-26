@@ -20,6 +20,7 @@ import {
   Send,
   Download,
   Info,
+  Bluetooth,
 } from 'lucide-react';
 import {
   ProtocolExperiment,
@@ -257,6 +258,25 @@ export const TimeSyncPage: React.FC<TimeSyncPageProps> = ({ onNavigate }) => {
         </button>
       </div>
 
+      {/* Disconnected Notice Banner */}
+      {status !== 'connected' && (
+        <div className="bg-amber-950/40 border border-amber-800/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-amber-200 shadow-md">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <span>
+              <strong>Watch Not Connected:</strong> Connect to your DIZO Watch D over BLE to discover which time synchronization characteristics are supported.
+            </span>
+          </div>
+          <button
+            onClick={() => onNavigate('connection')}
+            className="self-start sm:self-auto px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold transition-all shadow shrink-0 flex items-center gap-1.5 active:scale-95"
+          >
+            <Bluetooth className="w-4 h-4" />
+            <span>Connect Watch Now ➔</span>
+          </button>
+        </div>
+      )}
+
       {/* SECTION A: Current Phone / Host Time */}
       <div className="bg-lab-surface border border-lab-border rounded-xl p-6 space-y-4 shadow-sm">
         <div className="flex items-center justify-between border-b border-lab-border/70 pb-3">
@@ -441,11 +461,11 @@ export const TimeSyncPage: React.FC<TimeSyncPageProps> = ({ onNavigate }) => {
                 <div className="pt-2 border-t border-lab-border/50">
                   {status !== 'connected' ? (
                     <button
-                      disabled
-                      className="w-full py-2 rounded bg-slate-800/50 text-slate-500 text-xs font-mono flex items-center justify-center gap-2 cursor-not-allowed border border-slate-700/50"
+                      onClick={() => onNavigate('connection')}
+                      className="w-full py-2.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                     >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Connect Watch First</span>
+                      <Bluetooth className="w-3.5 h-3.5" />
+                      <span>Connect Watch to Test</span>
                     </button>
                   ) : !isAvailable || !hasWritePermission ? (
                     <button

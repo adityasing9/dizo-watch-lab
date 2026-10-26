@@ -266,28 +266,22 @@ export const OBSERVED_REFERENCE_CHARACTERISTICS: KnownUuidEntry[] = [
 export function getStandardAndObservedServiceUuids(): string[] {
   const serviceUuids = new Set<string>();
 
-  // Add all standard services
-  Object.keys(STANDARD_SERVICES).forEach((u) => serviceUuids.add(u));
-
-  // Add 16-bit aliases directly
-  serviceUuids.add(0x1800 as unknown as string);
-  serviceUuids.add(0x1801 as unknown as string);
-  serviceUuids.add(0x1805 as unknown as string);
-  serviceUuids.add(0x180a as unknown as string);
-  serviceUuids.add(0x180f as unknown as string);
-  serviceUuids.add(0x1812 as unknown as string);
-  serviceUuids.add(0xfee0 as unknown as string);
-  serviceUuids.add(0xfee7 as unknown as string);
-
-  // Add observed reference services (only valid UUIDs for Web Bluetooth filter to avoid syntax errors)
-  OBSERVED_REFERENCE_SERVICES.forEach((s) => {
-    const val = validateUuid(s.uuid);
-    if (val.isValid) {
-      serviceUuids.add(s.uuid);
+  // Add all standard 128-bit services (always strings)
+  Object.keys(STANDARD_SERVICES).forEach((u) => {
+    if (typeof u === 'string' && u.trim().length > 0) {
+      serviceUuids.add(u.toLowerCase());
     }
   });
 
-  return Array.from(serviceUuids);
+  // Add observed reference services (only valid 128-bit UUID strings)
+  OBSERVED_REFERENCE_SERVICES.forEach((s) => {
+    const val = validateUuid(s.uuid);
+    if (val.isValid && typeof val.normalized === 'string') {
+      serviceUuids.add(val.normalized.toLowerCase());
+    }
+  });
+
+  return Array.from(serviceUuids).filter((u): u is string => typeof u === 'string' && u.length > 0);
 }
 
 /**
