@@ -16,9 +16,10 @@ import {
 interface HeaderProps {
   onToggleSidebar: () => void;
   onNavigate: (tabId: string) => void;
+  onSwitchToSimple?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate }) => {
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate, onSwitchToSimple }) => {
   const { status, device, isMockMode, setMockMode, disconnect } = useBluetooth();
   const [localTime, setLocalTime] = useState(new Date());
 
@@ -129,6 +130,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onNavigate }) =
             {isMockMode ? 'MOCK' : 'LIVE'}
           </button>
         </div>
+
+        {/* Switch to Simple Mode */}
+        {onSwitchToSimple && (
+          <button
+            onClick={onSwitchToSimple}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 text-xs font-mono transition-colors shadow-sm"
+            title="Switch to Simple 1-Tap Mode"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Simple Mode</span>
+          </button>
+        )}
 
         {/* Action Button */}
         {status === 'connected' ? (

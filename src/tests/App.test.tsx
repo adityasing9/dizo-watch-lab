@@ -7,6 +7,7 @@ describe('DIZO Watch Lab Application UI', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('dizo_mock_mode', 'true');
+    localStorage.setItem('dizo_app_mode', 'advanced');
   });
 
   it('renders application header with brand and target', async () => {
@@ -63,5 +64,16 @@ describe('DIZO Watch Lab Application UI', () => {
 
     expect(screen.getByText('Diagnostic Event Logging')).toBeInTheDocument();
     expect(screen.getByText('Clear Logs')).toBeInTheDocument();
+  });
+
+  it('renders Simple Watch Lab mode by default', async () => {
+    localStorage.removeItem('dizo_app_mode');
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.getByText('One-Tap Time Restorer')).toBeInTheDocument();
+    expect(screen.getByText('Advanced Lab')).toBeInTheDocument();
+    expect(screen.getByText(/Connect DIZO Watch D/i)).toBeInTheDocument();
   });
 });
