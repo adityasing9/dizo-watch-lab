@@ -20,7 +20,7 @@ interface AppUpdaterPluginInterface {
 
 const AppUpdater = registerPlugin<AppUpdaterPluginInterface>('AppUpdater');
 
-export const CURRENT_APP_VERSION = 'v1.6.0';
+export const CURRENT_APP_VERSION = 'v1.7.0';
 
 export async function checkGitHubRelease(): Promise<GitHubReleaseInfo | null> {
   try {
